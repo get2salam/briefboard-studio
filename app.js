@@ -5,6 +5,7 @@ import {
   updateField,
   hydrateFromStorage,
 } from "./src/store.js";
+import { mountLists } from "./src/lists.js";
 
 function showSaveIndicator() {
   const el = document.querySelector("[data-save-indicator]");
@@ -42,8 +43,10 @@ function syncScalarFields(state) {
 function boot() {
   hydrateFromStorage();
   bindScalarFields();
+  mountLists();
   subscribe((state) => {
     syncScalarFields(state);
+    showSaveIndicator();
   });
   // Expose for quick debugging from devtools.
   window.__briefboard = { getState };
