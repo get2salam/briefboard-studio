@@ -1,0 +1,52 @@
+// Entry point. Wires the DOM to the store and renders the preview.
+import {
+  getState,
+  subscribe,
+  updateField,
+  hydrateFromStorage,
+} from "./src/store.js";
+
+function showSaveIndicator() {
+  const el = document.querySelector("[data-save-indicator]");
+  if (!el) return;
+  el.classList.add("is-dirty");
+  el.textContent = "Saving…";
+  clearTimeout(showSaveIndicator._t);
+  showSaveIndicator._t = setTimeout(() => {
+    el.classList.remove("is-dirty");
+    el.textContent = "Saved locally";
+  }, 400);
+}
+
+function bindScalarFields() {
+  const fields = document.querySelectorAll("[data-field]");
+  fields.forEach((el) => {
+    const key = el.dataset.field;
+    el.addEventListener("input", () => {
+      updateField(key, el.value);
+      showSaveIndicator();
+    });
+  });
+}
+
+function syncScalarFields(state) {
+  document.querySelectorAll("[data-field]").forEach((el) => {
+    const key = el.dataset.field;
+    const value = state[key] ?? "";
+    if (document.activeElement !== el && el.value !== value) {
+      el.value = value;
+    }
+  });
+}
+
+function boot() {
+  hydrateFromStorage();
+  bindScalarFields();
+  subscribe((state) => {
+    syncScalarFields(state);
+  });
+  // Expose for quick debugging from devtools.
+  window.__briefboard = { getState };
+}
+
+document.addEventListener("DOMContentLoaded", boot);
