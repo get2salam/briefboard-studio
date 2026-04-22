@@ -4,9 +4,12 @@ import {
   subscribe,
   updateField,
   hydrateFromStorage,
+  replaceState,
+  emptyBrief,
 } from "./src/store.js";
 import { mountLists } from "./src/lists.js";
 import { mountPreview } from "./src/preview.js";
+import { loadSampleBrief } from "./src/sample.js";
 
 function showSaveIndicator() {
   const el = document.querySelector("[data-save-indicator]");
@@ -41,11 +44,31 @@ function syncScalarFields(state) {
   });
 }
 
+function bindToolbar() {
+  const handlers = {
+    "load-sample": () => loadSampleBrief(),
+    reset: () => {
+      const hasContent = Object.values(getState()).some((v) =>
+        Array.isArray(v) ? v.length : typeof v === "string" && v.trim(),
+      );
+      if (hasContent && !confirm("Start a fresh brief? Your current one will be cleared.")) {
+        return;
+      }
+      replaceState(emptyBrief());
+    },
+  };
+  document.querySelectorAll("[data-action]").forEach((btn) => {
+    const action = btn.dataset.action;
+    if (handlers[action]) btn.addEventListener("click", handlers[action]);
+  });
+}
+
 function boot() {
   hydrateFromStorage();
   bindScalarFields();
   mountLists();
   mountPreview();
+  bindToolbar();
   subscribe((state) => {
     syncScalarFields(state);
     showSaveIndicator();
