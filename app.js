@@ -94,12 +94,34 @@ function bindToolbar() {
   });
 }
 
+function bindShortcuts() {
+  document.addEventListener("keydown", async (e) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+    // Ctrl/Cmd+S: copy brief as Markdown (we don't have a native save,
+    // so we intercept the familiar shortcut to do the closest thing).
+    if (e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      const ok = await copyMarkdownToClipboard();
+      toast(ok ? "Markdown copied" : "Copy failed — try export");
+    }
+    // Ctrl/Cmd+E: export both formats.
+    if (e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      exportJson();
+      exportMarkdown();
+      toast("Exported as .json and .md");
+    }
+  });
+}
+
 function boot() {
   hydrateFromStorage();
   bindScalarFields();
   mountLists();
   mountPreview();
   bindToolbar();
+  bindShortcuts();
   subscribe((state) => {
     syncScalarFields(state);
     showSaveIndicator();
