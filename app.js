@@ -6,6 +6,7 @@ import {
   hydrateFromStorage,
 } from "./src/store.js";
 import { mountLists } from "./src/lists.js";
+import { mountPreview } from "./src/preview.js";
 
 function showSaveIndicator() {
   const el = document.querySelector("[data-save-indicator]");
@@ -44,6 +45,7 @@ function boot() {
   hydrateFromStorage();
   bindScalarFields();
   mountLists();
+  mountPreview();
   subscribe((state) => {
     syncScalarFields(state);
     showSaveIndicator();
