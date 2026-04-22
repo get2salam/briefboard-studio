@@ -1,0 +1,133 @@
+// Markdown serializer and export/download helpers.
+import { getState } from "./store.js";
+
+function formatDate(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function section(heading, body) {
+  if (!body) return "";
+  return `## ${heading}\n\n${body}\n\n`;
+}
+
+function bulletList(items) {
+  const nonEmpty = items.filter((i) => (i.text || "").trim());
+  if (!nonEmpty.length) return "";
+  return nonEmpty.map((i) => `- ${i.text.trim()}`).join("\n");
+}
+
+function timelineBlock(items) {
+  const nonEmpty = items.filter((i) => (i.text || "").trim() || i.date);
+  if (!nonEmpty.length) return "";
+  const sorted = [...nonEmpty].sort((a, b) => {
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return a.date.localeCompare(b.date);
+  });
+  return sorted
+    .map((i) => `- **${i.date ? formatDate(i.date) : "TBD"}** — ${i.text || ""}`)
+    .join("\n");
+}
+
+export function toMarkdown(state = getState()) {
+  const lines = [];
+  const title = (state.title || "").trim() || "Untitled brief";
+  lines.push(`# ${title}`);
+  lines.push("");
+
+  const metaBits = [];
+  if (state.client) metaBits.push(`**Client:** ${state.client}`);
+  if (state.owner) metaBits.push(`**Owner:** ${state.owner}`);
+  if (state.dueDate) metaBits.push(`**Target date:** ${formatDate(state.dueDate)}`);
+  if (metaBits.length) {
+    lines.push(metaBits.join("  \n"));
+    lines.push("");
+  }
+
+  let body = "";
+  if ((state.summary || "").trim()) {
+    body += section("Summary", state.summary.trim());
+  }
+  body += section("Goals", bulletList(state.goals || []));
+  body += section("Deliverables", bulletList(state.deliverables || []));
+  body += section("Timeline", timelineBlock(state.timeline || []));
+  body += section("Risks & open questions", bulletList(state.risks || []));
+  body += section("Next steps", bulletList(state.nextSteps || []));
+
+  if ((state.rawNotes || "").trim()) {
+    body += section("Raw notes", state.rawNotes.trim());
+  }
+
+  return (lines.join("\n") + "\n" + body).trimEnd() + "\n";
+}
+
+export async function copyMarkdownToClipboard(state = getState()) {
+  const md = toMarkdown(state);
+  try {
+    await navigator.clipboard.writeText(md);
+    return true;
+  } catch {
+    // Fallback: use a hidden textarea with execCommand for older browsers.
+    const ta = document.createElement("textarea");
+    ta.value = md;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "absolute";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+function safeFilename(state, ext) {
+  const raw = (state.title || "brief").trim().toLowerCase();
+  const slug = raw
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  const stem = slug || "brief";
+  const stamp = new Date().toISOString().slice(0, 10);
+  return `${stem}-${stamp}.${ext}`;
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Revoke on the next tick so the browser has started the download.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function exportJson(state = getState()) {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {
+    type: "application/json",
+  });
+  triggerDownload(blob, safeFilename(state, "json"));
+}
+
+export function exportMarkdown(state = getState()) {
+  const blob = new Blob([toMarkdown(state)], {
+    type: "text/markdown;charset=utf-8",
+  });
+  triggerDownload(blob, safeFilename(state, "md"));
+}

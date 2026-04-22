@@ -10,6 +10,11 @@ import {
 import { mountLists } from "./src/lists.js";
 import { mountPreview } from "./src/preview.js";
 import { loadSampleBrief } from "./src/sample.js";
+import {
+  copyMarkdownToClipboard,
+  exportJson,
+  exportMarkdown,
+} from "./src/export.js";
 
 function showSaveIndicator() {
   const el = document.querySelector("[data-save-indicator]");
@@ -44,9 +49,25 @@ function syncScalarFields(state) {
   });
 }
 
+function toast(message) {
+  let el = document.querySelector(".toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.classList.add("is-visible");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("is-visible"), 1600);
+}
+
 function bindToolbar() {
   const handlers = {
-    "load-sample": () => loadSampleBrief(),
+    "load-sample": () => {
+      loadSampleBrief();
+      toast("Sample brief loaded");
+    },
     reset: () => {
       const hasContent = Object.values(getState()).some((v) =>
         Array.isArray(v) ? v.length : typeof v === "string" && v.trim(),
@@ -55,6 +76,16 @@ function bindToolbar() {
         return;
       }
       replaceState(emptyBrief());
+      toast("Blank brief ready");
+    },
+    "copy-md": async () => {
+      const ok = await copyMarkdownToClipboard();
+      toast(ok ? "Markdown copied" : "Copy failed — try export instead");
+    },
+    "export-json": () => {
+      exportJson();
+      exportMarkdown();
+      toast("Exported as .json and .md");
     },
   };
   document.querySelectorAll("[data-action]").forEach((btn) => {
