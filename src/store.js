@@ -79,14 +79,53 @@ function persist() {
   }
 }
 
+const SCALAR_STRING_FIELDS = [
+  "title",
+  "client",
+  "owner",
+  "dueDate",
+  "rawNotes",
+  "summary",
+];
+const SIMPLE_LIST_FIELDS = ["goals", "deliverables", "risks", "nextSteps"];
+
+function sanitizeListItem(item, isTimeline) {
+  if (!item || typeof item !== "object") return null;
+  const id = typeof item.id === "string" && item.id ? item.id : newId();
+  const text = typeof item.text === "string" ? item.text : "";
+  if (isTimeline) {
+    const date = typeof item.date === "string" ? item.date : "";
+    return { id, date, text };
+  }
+  return { id, text };
+}
+
+function sanitizeList(value, isTimeline) {
+  if (!Array.isArray(value)) return [];
+  return value.map((i) => sanitizeListItem(i, isTimeline)).filter(Boolean);
+}
+
+// Normalize a parsed brief so the UI never has to defend against
+// missing fields, wrong types, or list items without ids.
+export function sanitizeBrief(input) {
+  const merged = { ...emptyBrief(), ...(input || {}) };
+  for (const key of SCALAR_STRING_FIELDS) {
+    if (typeof merged[key] !== "string") merged[key] = "";
+  }
+  for (const key of SIMPLE_LIST_FIELDS) {
+    merged[key] = sanitizeList(merged[key], false);
+  }
+  merged.timeline = sanitizeList(merged.timeline, true);
+  return merged;
+}
+
 export function hydrateFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return false;
-    // Merge onto a fresh empty brief so newly-added fields get sensible defaults.
-    state = { ...emptyBrief(), ...parsed };
+    state = sanitizeBrief(parsed);
     emit();
     return true;
   } catch (err) {
