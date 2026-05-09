@@ -1,0 +1,13 @@
+{
+  "name": "briefboard-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Turn messy client notes into a clean, shareable project brief — entirely in your browser.",
+  "scripts": {
+    "test": "node --test 'test/**/*.test.js'"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

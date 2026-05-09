@@ -109,6 +109,18 @@ console with `window.__briefboard.getState()`.
 - No framework, no build step, no runtime dependencies.
 - Works in any evergreen browser (Chrome, Firefox, Safari, Edge).
 
+## Tests
+
+The pure-function modules are covered by a small suite that runs on Node's
+built-in test runner — no test framework, no `node_modules`:
+
+```bash
+npm test
+```
+
+Requires Node 20+. Tests live in `test/` and currently cover the
+`sanitizeBrief` defenses around malformed `localStorage` state.
+
 ## Roadmap ideas
 
 These aren't promises — just directions the project could grow:
