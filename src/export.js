@@ -4,7 +4,12 @@ import { getState } from "./store.js";
 function formatDate(iso) {
   if (!iso) return "";
   try {
-    return new Date(iso + "T00:00:00").toLocaleDateString(undefined, {
+    const d = new Date(iso + "T00:00:00");
+    // `toLocaleDateString` on an Invalid Date returns the literal string
+    // "Invalid Date" instead of throwing — guard explicitly so a malformed
+    // dueDate falls back to the raw input rather than leaking into output.
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",

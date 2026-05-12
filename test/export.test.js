@@ -55,3 +55,20 @@ test("toMarkdown trims bullet text and emits exactly one trailing newline", () =
   assert.match(md, /- Ship it\n/);
   assert.ok(md.endsWith("\n") && !md.endsWith("\n\n"), "should end with single \\n");
 });
+
+test("toMarkdown falls back to raw dueDate when the value is not a valid date", () => {
+  const md = toMarkdown(brief({ title: "T", dueDate: "not-a-date" }));
+  assert.match(md, /\*\*Target date:\*\* not-a-date/);
+  assert.doesNotMatch(md, /Invalid Date/);
+});
+
+test("toMarkdown falls back to raw timeline date when the value is not a valid date", () => {
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [{ id: "x", date: "bogus", text: "Kickoff" }],
+    }),
+  );
+  assert.match(md, /- \*\*bogus\*\* — Kickoff/);
+  assert.doesNotMatch(md, /Invalid Date/);
+});
