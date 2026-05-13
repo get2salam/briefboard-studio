@@ -100,12 +100,14 @@ export async function copyMarkdownToClipboard(state = getState()) {
   }
 }
 
-function safeFilename(state, ext) {
+export function safeFilename(state, ext) {
   const raw = (state.title || "brief").trim().toLowerCase();
+  // Truncate first, then strip edge dashes: otherwise a long title like
+  // "ab ab ab ..." can slice to "ab-ab-...-" and leave a trailing dash.
   const slug = raw
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
+    .slice(0, 60)
+    .replace(/^-+|-+$/g, "");
   const stem = slug || "brief";
   const stamp = new Date().toISOString().slice(0, 10);
   return `${stem}-${stamp}.${ext}`;
