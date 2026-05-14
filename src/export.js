@@ -1,23 +1,6 @@
 // Markdown serializer and export/download helpers.
 import { getState } from "./store.js";
-
-function formatDate(iso) {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso + "T00:00:00");
-    // `toLocaleDateString` on an Invalid Date returns the literal string
-    // "Invalid Date" instead of throwing — guard explicitly so a malformed
-    // dueDate falls back to the raw input rather than leaking into output.
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return iso;
-  }
-}
+import { formatDate } from "./format.js";
 
 function section(heading, body) {
   if (!body) return "";

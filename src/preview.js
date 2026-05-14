@@ -2,6 +2,7 @@
 // Uses document.createElement + textContent throughout — never innerHTML —
 // so user input is never interpreted as HTML.
 import { subscribe } from "./store.js";
+import { formatDate } from "./format.js";
 
 const LABELS = {
   goals: "Goals",
@@ -96,19 +97,6 @@ function renderMeta(state) {
   const meta = el("p", { class: "brief-meta" });
   parts.forEach((p) => meta.appendChild(p));
   return meta;
-}
-
-function formatDate(iso) {
-  if (!iso) return "";
-  try {
-    return new Date(iso + "T00:00:00").toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return iso;
-  }
 }
 
 function renderSimpleList(listKey, items) {
