@@ -12,9 +12,14 @@ const LABELS = {
 };
 
 export function isBriefEmpty(state) {
-  const lists = ["goals", "deliverables", "risks", "timeline", "nextSteps"];
-  const hasList = lists.some((k) =>
+  const simpleLists = ["goals", "deliverables", "risks", "nextSteps"];
+  const hasSimpleList = simpleLists.some((k) =>
     (state[k] || []).some((i) => (i.text || "").trim()),
+  );
+  // Timeline mirrors renderTimeline / toMarkdown: a date alone is content,
+  // so a brief with only dated rows must not collapse to the empty state.
+  const hasTimeline = (state.timeline || []).some(
+    (i) => (i.text || "").trim() || i.date,
   );
   const hasScalar = [
     state.title,
@@ -24,7 +29,7 @@ export function isBriefEmpty(state) {
     state.rawNotes,
     state.summary,
   ].some((v) => (v || "").trim());
-  return !hasList && !hasScalar;
+  return !hasSimpleList && !hasTimeline && !hasScalar;
 }
 
 function el(tag, attrs = {}, ...children) {
