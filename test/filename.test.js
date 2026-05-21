@@ -26,3 +26,10 @@ test("safeFilename truncates long titles without leaving a trailing dash", () =>
   assert.ok(stem.length <= 60, `stem should be ≤ 60 chars, got ${stem.length}`);
   assert.doesNotMatch(stem, /-$/, "stem should not end with a dash");
 });
+
+test("safeFilename strips diacritics so accented letters survive the slug", () => {
+  // Without NFD normalization the ASCII filter would drop "é" entirely,
+  // turning "café" into "caf" — a confusing rename for the user.
+  const name = safeFilename({ title: "Café Résumé — Naïve Façade" }, "md");
+  assert.match(name, new RegExp(`^cafe-resume-naive-facade-${STAMP.source}\\.md$`));
+});

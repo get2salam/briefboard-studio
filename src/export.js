@@ -84,7 +84,14 @@ export async function copyMarkdownToClipboard(state = getState()) {
 }
 
 export function safeFilename(state, ext) {
-  const raw = (state.title || "brief").trim().toLowerCase();
+  // Normalize to NFD and strip combining marks so accented characters
+  // contribute their base letter ("café" → "cafe") instead of being dropped
+  // by the ASCII-only filter below, which would otherwise yield "caf".
+  const raw = (state.title || "brief")
+    .trim()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
   // Truncate first, then strip edge dashes: otherwise a long title like
   // "ab ab ab ..." can slice to "ab-ab-...-" and leave a trailing dash.
   const slug = raw
