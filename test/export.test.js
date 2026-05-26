@@ -19,6 +19,22 @@ test("toMarkdown emits a meta block only when at least one meta field is set", (
   assert.doesNotMatch(toMarkdown(brief({ title: "T" })), /\*\*Client:\*\*/);
 });
 
+test("toMarkdown omits meta lines whose values are whitespace-only", () => {
+  // Regression: a bare truthy check would emit "**Client:** " with a
+  // trailing space and no value, leaving a visibly empty meta row.
+  const md = toMarkdown(
+    brief({ title: "T", client: "   ", owner: "\t", dueDate: " " }),
+  );
+  assert.doesNotMatch(md, /\*\*Client:\*\*/);
+  assert.doesNotMatch(md, /\*\*Owner:\*\*/);
+  assert.doesNotMatch(md, /\*\*Target date:\*\*/);
+});
+
+test("toMarkdown trims surrounding whitespace from emitted meta values", () => {
+  const md = toMarkdown(brief({ title: "T", client: "  Acme  " }));
+  assert.match(md, /\*\*Client:\*\* Acme\n/);
+});
+
 test("toMarkdown skips list sections whose items are all empty or whitespace", () => {
   const md = toMarkdown(
     brief({

@@ -65,36 +65,41 @@ function renderEmptyState(previewEl) {
 
 function renderMeta(state) {
   const parts = [];
-  if (state.client) {
+  // Trim before checking so a whitespace-only field doesn't render an
+  // empty "Client: " row — matches the Markdown export.
+  const client = (state.client || "").trim();
+  const owner = (state.owner || "").trim();
+  const dueDate = (state.dueDate || "").trim();
+  if (client) {
     parts.push(
       el(
         "span",
         {},
         el("span", { class: "meta-label", text: "Client:" }),
         " ",
-        state.client,
+        client,
       ),
     );
   }
-  if (state.owner) {
+  if (owner) {
     parts.push(
       el(
         "span",
         {},
         el("span", { class: "meta-label", text: "Owner:" }),
         " ",
-        state.owner,
+        owner,
       ),
     );
   }
-  if (state.dueDate) {
+  if (dueDate) {
     parts.push(
       el(
         "span",
         {},
         el("span", { class: "meta-label", text: "Target:" }),
         " ",
-        formatDate(state.dueDate),
+        formatDate(dueDate),
       ),
     );
   }

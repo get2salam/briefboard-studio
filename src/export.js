@@ -33,9 +33,14 @@ export function toMarkdown(state = getState()) {
   lines.push("");
 
   const metaBits = [];
-  if (state.client) metaBits.push(`**Client:** ${state.client}`);
-  if (state.owner) metaBits.push(`**Owner:** ${state.owner}`);
-  if (state.dueDate) metaBits.push(`**Target date:** ${formatDate(state.dueDate)}`);
+  // Trim before checking truthiness so a whitespace-only field doesn't
+  // emit an empty "**Client:** " line — matches the list/section behavior.
+  const client = (state.client || "").trim();
+  const owner = (state.owner || "").trim();
+  const dueDate = (state.dueDate || "").trim();
+  if (client) metaBits.push(`**Client:** ${client}`);
+  if (owner) metaBits.push(`**Owner:** ${owner}`);
+  if (dueDate) metaBits.push(`**Target date:** ${formatDate(dueDate)}`);
   if (metaBits.length) {
     lines.push(metaBits.join("  \n"));
     lines.push("");
