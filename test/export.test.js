@@ -78,6 +78,26 @@ test("toMarkdown falls back to raw dueDate when the value is not a valid date", 
   assert.doesNotMatch(md, /Invalid Date/);
 });
 
+test("toMarkdown preserves input order among multiple undated timeline rows", () => {
+  // Regression: the sort comparator used to return 1 for both (a,b) and
+  // (b,a) when neither had a date, an antisymmetry violation that could
+  // shuffle the user's typing order on some engines.
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [
+        { id: "1", date: "", text: "First undated" },
+        { id: "2", date: "", text: "Second undated" },
+        { id: "3", date: "", text: "Third undated" },
+      ],
+    }),
+  );
+  const first = md.indexOf("First undated");
+  const second = md.indexOf("Second undated");
+  const third = md.indexOf("Third undated");
+  assert.ok(first > 0 && first < second && second < third, "undated rows must keep input order");
+});
+
 test("toMarkdown falls back to raw timeline date when the value is not a valid date", () => {
   const md = toMarkdown(
     brief({

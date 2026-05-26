@@ -17,6 +17,10 @@ function timelineBlock(items) {
   const nonEmpty = items.filter((i) => (i.text || "").trim() || i.date);
   if (!nonEmpty.length) return "";
   const sorted = [...nonEmpty].sort((a, b) => {
+    // Both-undated must return 0 so the comparator stays antisymmetric;
+    // returning 1 in both directions is invalid per the sort contract and
+    // can reorder rows the user typed in a specific sequence.
+    if (!a.date && !b.date) return 0;
     if (!a.date) return 1;
     if (!b.date) return -1;
     return a.date.localeCompare(b.date);

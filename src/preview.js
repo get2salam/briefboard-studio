@@ -128,6 +128,9 @@ function renderTimeline(items) {
   const frag = document.createDocumentFragment();
   frag.appendChild(el("h3", { text: "Timeline" }));
   const sorted = [...nonEmpty].sort((a, b) => {
+    // Mirror toMarkdown: both-undated returns 0 to keep the comparator
+    // antisymmetric so users' typing order is preserved across re-renders.
+    if (!a.date && !b.date) return 0;
     if (!a.date) return 1;
     if (!b.date) return -1;
     return a.date.localeCompare(b.date);
