@@ -19,3 +19,19 @@ test("formatDate renders a valid ISO date as a human-readable string", () => {
   assert.ok(out.length > 0 && out !== "2026-01-15");
   assert.doesNotMatch(out, /Invalid Date/);
 });
+
+test("formatDate returns an empty string for non-string inputs", () => {
+  // Callers feed strings (the store normalizes them), so a non-string is a
+  // programming mistake. Fail closed rather than coerce to "42T00:00:00"
+  // or echo a Date object back through the raw-input fallback.
+  assert.equal(formatDate(42), "");
+  assert.equal(formatDate(new Date("2026-01-15")), "");
+  assert.equal(formatDate({}), "");
+  assert.equal(formatDate(true), "");
+});
+
+test("formatDate always returns a string regardless of input shape", () => {
+  for (const input of ["", "2026-01-15", "not-a-date", 42, null, undefined, {}, true]) {
+    assert.equal(typeof formatDate(input), "string");
+  }
+});
