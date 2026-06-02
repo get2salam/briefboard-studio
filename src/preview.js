@@ -136,6 +136,10 @@ function renderTimeline(items) {
     return a.date.localeCompare(b.date);
   });
   sorted.forEach((item) => {
+    // Trim text to match toMarkdown so the preview and the export agree on
+    // whether a row is "just a date" — the only-date case renders with the
+    // date column populated and an empty text span.
+    const text = (item.text || "").trim();
     const row = el("div", { class: "timeline-row" });
     row.appendChild(
       el("span", {
@@ -143,7 +147,7 @@ function renderTimeline(items) {
         text: item.date ? formatDate(item.date) : "—",
       }),
     );
-    row.appendChild(el("span", { text: item.text || "" }));
+    row.appendChild(el("span", { text }));
     frag.appendChild(row);
   });
   return frag;

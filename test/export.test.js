@@ -98,6 +98,31 @@ test("toMarkdown preserves input order among multiple undated timeline rows", ()
   assert.ok(first > 0 && first < second && second < third, "undated rows must keep input order");
 });
 
+test("toMarkdown trims timeline text so surrounding whitespace doesn't leak into the bullet", () => {
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [{ id: "x", date: "2026-01-15", text: "  Kickoff  " }],
+    }),
+  );
+  assert.match(md, /— Kickoff\n/);
+  assert.doesNotMatch(md, /—   Kickoff/);
+});
+
+test("toMarkdown drops the em-dash separator for a date-only timeline row", () => {
+  // A row the user entered with only a date should render as a clean bullet,
+  // not "- **Jan 15, 2026** — " with a dangling separator and trailing space.
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [{ id: "x", date: "2026-01-15", text: "   " }],
+    }),
+  );
+  assert.doesNotMatch(md, /\*\* — \n/);
+  assert.doesNotMatch(md, /\*\* — $/m);
+  assert.match(md, /- \*\*[^*]+\*\*\n/);
+});
+
 test("toMarkdown falls back to raw timeline date when the value is not a valid date", () => {
   const md = toMarkdown(
     brief({

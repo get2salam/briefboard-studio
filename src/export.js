@@ -26,7 +26,14 @@ function timelineBlock(items) {
     return a.date.localeCompare(b.date);
   });
   return sorted
-    .map((i) => `- **${i.date ? formatDate(i.date) : "TBD"}** — ${i.text || ""}`)
+    .map((i) => {
+      // Trim text to match bulletList, and drop the em-dash separator when
+      // the row has only a date — otherwise the output ends with a dangling
+      // "— " that looks like a formatting bug to the reader.
+      const text = (i.text || "").trim();
+      const label = i.date ? formatDate(i.date) : "TBD";
+      return text ? `- **${label}** — ${text}` : `- **${label}**`;
+    })
     .join("\n");
 }
 
