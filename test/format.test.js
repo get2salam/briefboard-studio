@@ -35,3 +35,22 @@ test("formatDate always returns a string regardless of input shape", () => {
     assert.equal(typeof formatDate(input), "string");
   }
 });
+
+test("formatDate treats whitespace-only input as empty", () => {
+  // Regression: a whitespace string is truthy but " T00:00:00" is Invalid
+  // Date, so the raw-input fallback used to echo the padding back and leak
+  // a blank-looking label into Markdown and the preview.
+  assert.equal(formatDate("   "), "");
+  assert.equal(formatDate("\t"), "");
+  assert.equal(formatDate("\n"), "");
+});
+
+test("formatDate strips surrounding whitespace before parsing and from the fallback", () => {
+  // Only the dueDate callers pre-trim; timeline rows pass raw row.date, so
+  // trimming centrally keeps a padded but otherwise-valid ISO date renderable
+  // and prevents the unparsable case from echoing the padding back.
+  const padded = formatDate(" 2026-01-15 ");
+  assert.ok(padded.length > 0 && padded !== " 2026-01-15 ");
+  assert.doesNotMatch(padded, /Invalid Date/);
+  assert.equal(formatDate("  not-a-date  "), "not-a-date");
+});
