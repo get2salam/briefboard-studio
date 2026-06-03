@@ -7,10 +7,19 @@ function section(heading, body) {
   return `## ${heading}\n\n${body}\n\n`;
 }
 
+// Collapse newline runs (and any inline whitespace flanking them) into a
+// single space so a multi-line text value — only reachable via JSON import,
+// since the in-app <input type="text"> can't contain newlines — renders on
+// one bullet line instead of breaking the list with a lazy continuation
+// paragraph or, worse, an injected sub-bullet starting with "- ".
+function singleLine(text) {
+  return text.replace(/[ \t]*\r?\n[\s]*/g, " ").trim();
+}
+
 function bulletList(items) {
-  const nonEmpty = items.filter((i) => (i.text || "").trim());
-  if (!nonEmpty.length) return "";
-  return nonEmpty.map((i) => `- ${i.text.trim()}`).join("\n");
+  const cleaned = items.map((i) => singleLine(i.text || "")).filter(Boolean);
+  if (!cleaned.length) return "";
+  return cleaned.map((t) => `- ${t}`).join("\n");
 }
 
 function timelineBlock(items) {
@@ -27,10 +36,12 @@ function timelineBlock(items) {
   });
   return sorted
     .map((i) => {
-      // Trim text to match bulletList, and drop the em-dash separator when
-      // the row has only a date — otherwise the output ends with a dangling
-      // "— " that looks like a formatting bug to the reader.
-      const text = (i.text || "").trim();
+      // Match bulletList: trim and collapse internal newlines so a multi-
+      // line text value (only reachable via JSON import) stays on one bullet
+      // line, and drop the em-dash separator when the row has only a date,
+      // otherwise the output ends with a dangling "— " that looks like a
+      // formatting bug to the reader.
+      const text = singleLine(i.text || "");
       const label = i.date ? formatDate(i.date) : "TBD";
       return text ? `- **${label}** — ${text}` : `- **${label}**`;
     })

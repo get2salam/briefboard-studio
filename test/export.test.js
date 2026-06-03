@@ -123,6 +123,47 @@ test("toMarkdown drops the em-dash separator for a date-only timeline row", () =
   assert.match(md, /- \*\*[^*]+\*\*\n/);
 });
 
+test("toMarkdown collapses internal newlines in bullet text to single-line bullets", () => {
+  // The in-app row is an <input type="text"> so newlines can't be typed,
+  // but an imported JSON brief can carry a multi-line value. Without
+  // collapsing, the bullet wraps to a second line and most Markdown
+  // renderers treat it as a continuation paragraph or — if the next line
+  // starts with "- " — an injected sub-bullet that the user never wrote.
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      goals: [{ id: "g", text: "Line one\nLine two\n- pretend bullet" }],
+    }),
+  );
+  assert.match(md, /- Line one Line two - pretend bullet\n/);
+  assert.doesNotMatch(md, /\n- pretend bullet/);
+});
+
+test("toMarkdown collapses internal newlines in timeline text", () => {
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [{ id: "x", date: "2026-01-15", text: "Kickoff\nand intros" }],
+    }),
+  );
+  assert.match(md, /— Kickoff and intros\n/);
+  assert.doesNotMatch(md, /Kickoff\nand intros/);
+});
+
+test("toMarkdown drops bullets whose text is only newlines and whitespace", () => {
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      goals: [
+        { id: "a", text: "\n\n   \n" },
+        { id: "b", text: "Real goal" },
+      ],
+    }),
+  );
+  assert.match(md, /## Goals\n\n- Real goal\n/);
+  assert.doesNotMatch(md, /- \n/);
+});
+
 test("toMarkdown falls back to raw timeline date when the value is not a valid date", () => {
   const md = toMarkdown(
     brief({
