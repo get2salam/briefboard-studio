@@ -23,7 +23,15 @@ function bulletList(items) {
 }
 
 function timelineBlock(items) {
-  const nonEmpty = items.filter((i) => (i.text || "").trim() || i.date);
+  // Trim date and text together so a whitespace-only date (only reachable
+  // via JSON import — the <input type="date"> can't produce one) is treated
+  // the same as an empty date: formatDate would return "" for it, and the
+  // bullet would otherwise render as "- ****" with an empty bold label.
+  const rows = items.map((i) => ({
+    text: singleLine(i.text || ""),
+    date: (i.date || "").trim(),
+  }));
+  const nonEmpty = rows.filter((r) => r.text || r.date);
   if (!nonEmpty.length) return "";
   const sorted = [...nonEmpty].sort((a, b) => {
     // Both-undated must return 0 so the comparator stays antisymmetric;
@@ -35,15 +43,11 @@ function timelineBlock(items) {
     return a.date.localeCompare(b.date);
   });
   return sorted
-    .map((i) => {
-      // Match bulletList: trim and collapse internal newlines so a multi-
-      // line text value (only reachable via JSON import) stays on one bullet
-      // line, and drop the em-dash separator when the row has only a date,
-      // otherwise the output ends with a dangling "— " that looks like a
-      // formatting bug to the reader.
-      const text = singleLine(i.text || "");
-      const label = i.date ? formatDate(i.date) : "TBD";
-      return text ? `- **${label}** — ${text}` : `- **${label}**`;
+    .map((r) => {
+      // Drop the em-dash separator when the row has only a date, otherwise
+      // the output ends with a dangling "— " that looks like a formatting bug.
+      const label = r.date ? formatDate(r.date) : "TBD";
+      return r.text ? `- **${label}** — ${r.text}` : `- **${label}**`;
     })
     .join("\n");
 }

@@ -46,3 +46,14 @@ test("isBriefEmpty treats a timeline row with only a date as content", () => {
     false,
   );
 });
+
+test("isBriefEmpty treats a whitespace-only date timeline row as empty", () => {
+  // The date column is truthy as a string but renders as nothing, so the
+  // row contributes no visible content to the preview or the Markdown export.
+  // Counting it as content here would suppress the empty-state placeholder
+  // while the timeline section itself stays blank.
+  assert.equal(
+    isBriefEmpty(brief({ timeline: [{ id: "t", date: "   ", text: "" }] })),
+    true,
+  );
+});

@@ -18,8 +18,10 @@ export function isBriefEmpty(state) {
   );
   // Timeline mirrors renderTimeline / toMarkdown: a date alone is content,
   // so a brief with only dated rows must not collapse to the empty state.
+  // Trim the date too — a whitespace-only date would otherwise count as
+  // content here while renderTimeline / toMarkdown discard it as empty.
   const hasTimeline = (state.timeline || []).some(
-    (i) => (i.text || "").trim() || i.date,
+    (i) => (i.text || "").trim() || (i.date || "").trim(),
   );
   const hasScalar = [
     state.title,
@@ -123,7 +125,14 @@ function renderSimpleList(listKey, items) {
 }
 
 function renderTimeline(items) {
-  const nonEmpty = items.filter((i) => (i.text || "").trim() || i.date);
+  // Trim date and text to match toMarkdown: preview and export must agree on
+  // whether a row is "just a date" and on whether a whitespace-only date
+  // should render as "—" rather than an empty date column.
+  const rows = items.map((i) => ({
+    text: (i.text || "").trim(),
+    date: (i.date || "").trim(),
+  }));
+  const nonEmpty = rows.filter((r) => r.text || r.date);
   if (!nonEmpty.length) return null;
   const frag = document.createDocumentFragment();
   frag.appendChild(el("h3", { text: "Timeline" }));
@@ -135,19 +144,15 @@ function renderTimeline(items) {
     if (!b.date) return -1;
     return a.date.localeCompare(b.date);
   });
-  sorted.forEach((item) => {
-    // Trim text to match toMarkdown so the preview and the export agree on
-    // whether a row is "just a date" — the only-date case renders with the
-    // date column populated and an empty text span.
-    const text = (item.text || "").trim();
+  sorted.forEach((r) => {
     const row = el("div", { class: "timeline-row" });
     row.appendChild(
       el("span", {
         class: "timeline-date",
-        text: item.date ? formatDate(item.date) : "—",
+        text: r.date ? formatDate(r.date) : "—",
       }),
     );
-    row.appendChild(el("span", { text }));
+    row.appendChild(el("span", { text: r.text }));
     frag.appendChild(row);
   });
   return frag;

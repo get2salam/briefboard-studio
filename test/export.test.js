@@ -164,6 +164,35 @@ test("toMarkdown drops bullets whose text is only newlines and whitespace", () =
   assert.doesNotMatch(md, /- \n/);
 });
 
+test("toMarkdown drops timeline rows whose date is whitespace and text is empty", () => {
+  // Regression: a whitespace-only date is truthy but formatDate returns "",
+  // so the row used to emit "- ****" — an empty bold label with no content.
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [
+        { id: "a", date: "   ", text: "" },
+        { id: "b", date: "2026-01-15", text: "Real" },
+      ],
+    }),
+  );
+  assert.doesNotMatch(md, /- \*\*\*\*/);
+  assert.match(md, /- \*\*[^*]+\*\* — Real\n/);
+});
+
+test("toMarkdown labels a whitespace-only date as TBD when the row has text", () => {
+  // Regression: i.date was checked truthy without trimming, so "   " went
+  // to formatDate (which returns ""), leaving "- **** — Kickoff".
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [{ id: "x", date: "   ", text: "Kickoff" }],
+    }),
+  );
+  assert.match(md, /- \*\*TBD\*\* — Kickoff\n/);
+  assert.doesNotMatch(md, /- \*\*\*\*/);
+});
+
 test("toMarkdown falls back to raw timeline date when the value is not a valid date", () => {
   const md = toMarkdown(
     brief({
