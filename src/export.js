@@ -64,15 +64,20 @@ function timelineBlock(items) {
 
 export function toMarkdown(state = getState()) {
   const lines = [];
-  const title = (state.title || "").trim() || "Untitled brief";
+  // Collapse newlines so a multi-line title (only reachable via JSON import —
+  // the in-app <input type="text"> can't contain them) doesn't split the H1
+  // across an extra paragraph. Same defense as bullet/timeline text.
+  const title = singleLine(state.title || "") || "Untitled brief";
   lines.push(`# ${title}`);
   lines.push("");
 
   const metaBits = [];
-  // Trim before checking truthiness so a whitespace-only field doesn't
-  // emit an empty "**Client:** " line — matches the list/section behavior.
-  const client = (state.client || "").trim();
-  const owner = (state.owner || "").trim();
+  // Collapse newlines and trim in one step. A newline-bearing meta value
+  // (again, only via JSON import) would otherwise break the meta block's
+  // hard-wrapped lines or — worst case — let a value like "Sam\n# Injected"
+  // smuggle what renders as a new top-level heading into the user's brief.
+  const client = singleLine(state.client || "");
+  const owner = singleLine(state.owner || "");
   const dueDate = (state.dueDate || "").trim();
   if (client) metaBits.push(`**Client:** ${client}`);
   if (owner) metaBits.push(`**Owner:** ${owner}`);

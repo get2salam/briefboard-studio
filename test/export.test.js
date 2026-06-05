@@ -219,6 +219,28 @@ test("toMarkdown escapes emphasis characters in a raw-fallback timeline date so 
   assert.doesNotMatch(md, /- \*\*\*hack\*\*\* /);
 });
 
+test("toMarkdown collapses internal newlines in the title so the H1 stays on one line", () => {
+  // The in-app title is an <input type="text"> so newlines can't be typed,
+  // but a JSON-imported brief can carry them. Without collapsing, the H1
+  // splits at the newline and the remainder becomes a separate paragraph.
+  const md = toMarkdown(brief({ title: "Top line\nbreaks heading" }));
+  assert.match(md, /^# Top line breaks heading\n/);
+  assert.doesNotMatch(md, /^# Top line\n/m);
+});
+
+test("toMarkdown collapses internal newlines in meta values", () => {
+  // Same class of bug as the title: a multi-line client/owner would break
+  // the meta block's two-space hard-wrap, and a value like "Sam\n# Injected"
+  // would otherwise smuggle what renders as a new top-level heading into the
+  // user's brief between the meta block and the first real section.
+  const md = toMarkdown(
+    brief({ title: "T", client: "Acme\nCorp", owner: "Sam\n# Injected" }),
+  );
+  assert.match(md, /\*\*Client:\*\* Acme Corp/);
+  assert.match(md, /\*\*Owner:\*\* Sam # Injected/);
+  assert.doesNotMatch(md, /\n# Injected/);
+});
+
 test("toMarkdown escapes underscore and backtick fallbacks in timeline dates too", () => {
   // Same class of bug as the asterisk case: underscores and backticks both
   // start Markdown spans, so a raw fallback containing them would either
