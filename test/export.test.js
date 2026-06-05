@@ -241,6 +241,32 @@ test("toMarkdown collapses internal newlines in meta values", () => {
   assert.doesNotMatch(md, /\n# Injected/);
 });
 
+test("toMarkdown collapses internal newlines in a raw-fallback dueDate so the meta line stays intact", () => {
+  // Same class of bug as title/client/owner: a JSON-imported dueDate can
+  // carry newlines, formatDate's raw fallback echoes them back, and the
+  // meta line would otherwise split across paragraphs and smuggle in a
+  // heading after the value.
+  const md = toMarkdown(
+    brief({ title: "T", dueDate: "2026-01-15\n# Injected" }),
+  );
+  assert.match(md, /\*\*Target date:\*\* 2026-01-15 # Injected/);
+  assert.doesNotMatch(md, /\n# Injected/);
+});
+
+test("toMarkdown collapses internal newlines in a raw-fallback timeline date so the bullet stays intact", () => {
+  // The surrounding "- **...**" wrapper breaks if the date contains a
+  // newline, and a value like "2026-01-15\n# Injected" would otherwise
+  // emit a heading on the line after the bullet.
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [{ id: "x", date: "2026-01-15\n# Injected", text: "Kickoff" }],
+    }),
+  );
+  assert.match(md, /- \*\*2026-01-15 # Injected\*\* — Kickoff/);
+  assert.doesNotMatch(md, /\n# Injected/);
+});
+
 test("toMarkdown escapes underscore and backtick fallbacks in timeline dates too", () => {
   // Same class of bug as the asterisk case: underscores and backticks both
   // start Markdown spans, so a raw fallback containing them would either

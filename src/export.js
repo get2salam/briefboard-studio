@@ -33,13 +33,14 @@ function escapeBoldLabel(label) {
 }
 
 function timelineBlock(items) {
-  // Trim date and text together so a whitespace-only date (only reachable
-  // via JSON import — the <input type="date"> can't produce one) is treated
-  // the same as an empty date: formatDate would return "" for it, and the
-  // bullet would otherwise render as "- ****" with an empty bold label.
+  // singleLine the date too (not just trim it) so a JSON-imported value like
+  // "2026-01-15\n# Injected" can't split the bullet and smuggle in a heading:
+  // formatDate would return the raw input unchanged for an unparsable date,
+  // and the surrounding "- **...**" wrapper would otherwise break across
+  // lines. Also handles the whitespace-only date case the same way trim did.
   const rows = items.map((i) => ({
     text: singleLine(i.text || ""),
-    date: (i.date || "").trim(),
+    date: singleLine(i.date || ""),
   }));
   const nonEmpty = rows.filter((r) => r.text || r.date);
   if (!nonEmpty.length) return "";
@@ -78,7 +79,10 @@ export function toMarkdown(state = getState()) {
   // smuggle what renders as a new top-level heading into the user's brief.
   const client = singleLine(state.client || "");
   const owner = singleLine(state.owner || "");
-  const dueDate = (state.dueDate || "").trim();
+  // singleLine, not trim: an imported dueDate like "2026-01-15\n# Injected"
+  // is unparsable, so formatDate echoes it back, and the meta line would
+  // otherwise break across two lines and inject a heading after the value.
+  const dueDate = singleLine(state.dueDate || "");
   if (client) metaBits.push(`**Client:** ${client}`);
   if (owner) metaBits.push(`**Owner:** ${owner}`);
   if (dueDate) metaBits.push(`**Target date:** ${formatDate(dueDate)}`);
