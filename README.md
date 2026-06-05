@@ -118,8 +118,14 @@ built-in test runner — no test framework, no `node_modules`:
 npm test
 ```
 
-Requires Node 20+. Tests live in `test/` and currently cover the
-`sanitizeBrief` defenses around malformed `localStorage` state.
+Requires Node 20+. Tests live in `test/` and cover the `sanitizeBrief`
+defenses around malformed `localStorage` state, `formatDate` parsing and
+fallbacks, `safeFilename` slugging, `isBriefEmpty` semantics, and the
+`toMarkdown` export contract.
+
+The suite also runs in CI on every push and pull request to `main` via
+[`.github/workflows/test.yml`](./.github/workflows/test.yml), across Node 20
+(minimum supported) and Node 22 (current LTS).
 
 ## Roadmap ideas
 
