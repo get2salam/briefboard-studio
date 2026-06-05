@@ -22,6 +22,16 @@ function bulletList(items) {
   return cleaned.map((t) => `- ${t}`).join("\n");
 }
 
+// Escape the Markdown emphasis characters that would unbalance the
+// surrounding **...** wrapper on a timeline date label. A formatted date
+// like "Jan 15, 2026" never contains these, so this only matters when a
+// malformed JSON-imported date falls through formatDate's raw fallback
+// (e.g. "*hack*" → "- ***hack*** — text", which most renderers parse as
+// bold-italic and swallows the em-dash separator on the rest of the line).
+function escapeBoldLabel(label) {
+  return label.replace(/[\\*_`]/g, "\\$&");
+}
+
 function timelineBlock(items) {
   // Trim date and text together so a whitespace-only date (only reachable
   // via JSON import — the <input type="date"> can't produce one) is treated
@@ -46,7 +56,7 @@ function timelineBlock(items) {
     .map((r) => {
       // Drop the em-dash separator when the row has only a date, otherwise
       // the output ends with a dangling "— " that looks like a formatting bug.
-      const label = r.date ? formatDate(r.date) : "TBD";
+      const label = escapeBoldLabel(r.date ? formatDate(r.date) : "TBD");
       return r.text ? `- **${label}** — ${r.text}` : `- **${label}**`;
     })
     .join("\n");

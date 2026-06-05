@@ -203,3 +203,36 @@ test("toMarkdown falls back to raw timeline date when the value is not a valid d
   assert.match(md, /- \*\*bogus\*\* — Kickoff/);
   assert.doesNotMatch(md, /Invalid Date/);
 });
+
+test("toMarkdown escapes emphasis characters in a raw-fallback timeline date so the bold wrapper survives", () => {
+  // Regression: a JSON-imported brief can carry a date string formatDate
+  // can't parse (e.g. "*hack*"), which echoes back unchanged. Wrapping that
+  // in **...** without escaping produced "- ***hack*** — Kickoff", which most
+  // renderers parse as bold-italic and visually swallows the em-dash separator.
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [{ id: "x", date: "*hack*", text: "Kickoff" }],
+    }),
+  );
+  assert.match(md, /- \*\*\\\*hack\\\*\*\* — Kickoff/);
+  assert.doesNotMatch(md, /- \*\*\*hack\*\*\* /);
+});
+
+test("toMarkdown escapes underscore and backtick fallbacks in timeline dates too", () => {
+  // Same class of bug as the asterisk case: underscores and backticks both
+  // start Markdown spans, so a raw fallback containing them would either
+  // cross-pair with the surrounding ** wrapper or open an unterminated code
+  // span that runs through the rest of the line.
+  const md = toMarkdown(
+    brief({
+      title: "T",
+      timeline: [
+        { id: "a", date: "_x_", text: "Under" },
+        { id: "b", date: "`y`", text: "Tick" },
+      ],
+    }),
+  );
+  assert.match(md, /- \*\*\\_x\\_\*\* — Under/);
+  assert.match(md, /- \*\*\\`y\\`\*\* — Tick/);
+});
