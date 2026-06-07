@@ -15,6 +15,7 @@ import {
   exportJson,
   exportMarkdown,
 } from "./src/export.js";
+import { announce } from "./src/toast.js";
 
 function showSaveIndicator() {
   const el = document.querySelector("[data-save-indicator]");
@@ -49,17 +50,13 @@ function syncScalarFields(state) {
   });
 }
 
-function toast(message) {
-  let el = document.querySelector(".toast");
-  if (!el) {
-    el = document.createElement("div");
-    el.className = "toast";
-    document.body.appendChild(el);
-  }
-  el.textContent = message;
-  el.classList.add("is-visible");
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.remove("is-visible"), 1600);
+function toast(message, opts = {}) {
+  // The toast container is declared in index.html so the live region is
+  // registered with assistive tech at load time, not lazily when the
+  // first message fires — some screen readers won't announce regions
+  // that pop into existence after page render.
+  const el = document.querySelector("[data-toast]");
+  announce(message, { ...opts, el });
 }
 
 function bindToolbar() {
@@ -80,7 +77,8 @@ function bindToolbar() {
     },
     "copy-md": async () => {
       const ok = await copyMarkdownToClipboard();
-      toast(ok ? "Markdown copied" : "Copy failed — try export instead");
+      if (ok) toast("Markdown copied");
+      else toast("Copy failed — try export instead", { kind: "error" });
     },
     "export-json": () => {
       exportJson();
@@ -103,7 +101,8 @@ function bindShortcuts() {
     if (e.key.toLowerCase() === "s") {
       e.preventDefault();
       const ok = await copyMarkdownToClipboard();
-      toast(ok ? "Markdown copied" : "Copy failed — try export");
+      if (ok) toast("Markdown copied");
+      else toast("Copy failed — try export", { kind: "error" });
     }
     // Ctrl/Cmd+E: export both formats.
     if (e.key.toLowerCase() === "e") {
