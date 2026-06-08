@@ -90,3 +90,58 @@ test("emptyBrief returns a fresh object each call (no shared references)", () =>
   a.goals.push({ id: "x", text: "mutated" });
   assert.deepEqual(b.goals, [], "mutating one empty brief must not leak into another");
 });
+
+test("sanitizeBrief drops unknown top-level keys from imported input", () => {
+  // An imported brief may carry fields from a future schema version, a
+  // typo, or a hand-edited file. Keep state lean — and the next export
+  // honest — by ignoring anything outside the known schema.
+  const result = sanitizeBrief({
+    title: "Real",
+    evilNote: "x".repeat(1000),
+    __unused: true,
+    nested: { also: "ignored" },
+  });
+  assert.equal(result.title, "Real");
+  assert.equal(Object.prototype.hasOwnProperty.call(result, "evilNote"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(result, "__unused"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(result, "nested"), false);
+});
+
+test("sanitizeBrief refuses to copy values inherited from the prototype chain", () => {
+  // Only own properties are part of a brief — an object that inherits a
+  // "title" from a deliberately crafted prototype must not silently
+  // contribute that value to state.
+  const ancestor = { title: "INHERITED" };
+  const child = Object.create(ancestor);
+  child.client = "Acme";
+  const result = sanitizeBrief(child);
+  assert.equal(result.title, "");
+  assert.equal(result.client, "Acme");
+});
+
+test("sanitizeBrief strips an own __proto__ property without polluting Object.prototype", () => {
+  // JSON.parse('{"__proto__":{...}}') creates "__proto__" as an own data
+  // property (no prototype write), but that property would otherwise
+  // survive into state and surface in the next export. The allowlist
+  // filter drops it; verify the engine's prototype is also untouched.
+  const malicious = JSON.parse(
+    '{"title":"T","__proto__":{"polluted":"yes"}}',
+  );
+  const result = sanitizeBrief(malicious);
+  assert.equal(result.title, "T");
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(result, "__proto__"),
+    false,
+    "own __proto__ must not leak into sanitized state",
+  );
+  assert.equal(({}).polluted, undefined, "global Object.prototype must remain clean");
+});
+
+test("sanitizeBrief rejects array roots so importing a bare list never aliases as a brief", () => {
+  // A JSON file that decodes to an array (a common shape from "export
+  // my list of items") shouldn't half-load as a brief — fall all the
+  // way back to the empty shape.
+  const result = sanitizeBrief([{ title: "ignored" }]);
+  assert.equal(result.title, "");
+  assert.deepEqual(result.goals, []);
+});

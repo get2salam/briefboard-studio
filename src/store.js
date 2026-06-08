@@ -55,7 +55,11 @@ export function removeListItem(listKey, id) {
 }
 
 export function replaceState(next) {
-  state = { ...emptyBrief(), ...next, updatedAt: new Date().toISOString() };
+  // Route every replacement through sanitizeBrief so the sample loader, a
+  // future JSON import, and any console-driven swap all converge on the
+  // same normalized shape. Without this, replaceState was a quiet bypass
+  // for the type/allowlist guards every other write goes through.
+  state = { ...sanitizeBrief(next), updatedAt: new Date().toISOString() };
   persist();
   emit();
 }
@@ -89,6 +93,28 @@ const SCALAR_STRING_FIELDS = [
 ];
 const SIMPLE_LIST_FIELDS = ["goals", "deliverables", "risks", "nextSteps"];
 
+// Allowlist of top-level keys we ever store on state. Any other key on an
+// imported brief is dropped on the floor — this keeps unknown fields from
+// bloating the exported JSON and, more importantly, strips the own
+// "__proto__" property that JSON.parse creates for `{"__proto__":...}`
+// payloads (spread already refuses to set the real prototype, but the
+// stray own property would otherwise survive into state and exports).
+const ALLOWED_TOP_LEVEL_KEYS = [
+  "version",
+  "title",
+  "client",
+  "owner",
+  "dueDate",
+  "rawNotes",
+  "summary",
+  "goals",
+  "deliverables",
+  "risks",
+  "timeline",
+  "nextSteps",
+  "updatedAt",
+];
+
 function sanitizeListItem(item, isTimeline) {
   if (!item || typeof item !== "object") return null;
   const id = typeof item.id === "string" && item.id ? item.id : newId();
@@ -105,10 +131,29 @@ function sanitizeList(value, isTimeline) {
   return value.map((i) => sanitizeListItem(i, isTimeline)).filter(Boolean);
 }
 
+function pickAllowed(input) {
+  // Copy only known, own properties — never values from up the prototype
+  // chain. JSON.parse only creates own properties, but a programmatic
+  // caller could hand us an object that inherits a "title" or "goals"
+  // from its prototype, and silently consuming that would be surprising.
+  const safe = {};
+  for (const key of ALLOWED_TOP_LEVEL_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(input, key)) {
+      safe[key] = input[key];
+    }
+  }
+  return safe;
+}
+
 // Normalize a parsed brief so the UI never has to defend against
-// missing fields, wrong types, or list items without ids.
+// missing fields, wrong types, list items without ids, or unknown
+// top-level keys smuggled in via an imported JSON file.
 export function sanitizeBrief(input) {
-  const merged = { ...emptyBrief(), ...(input || {}) };
+  const source =
+    input && typeof input === "object" && !Array.isArray(input)
+      ? pickAllowed(input)
+      : {};
+  const merged = { ...emptyBrief(), ...source };
   for (const key of SCALAR_STRING_FIELDS) {
     if (typeof merged[key] !== "string") merged[key] = "";
   }
@@ -117,6 +162,40 @@ export function sanitizeBrief(input) {
   }
   merged.timeline = sanitizeList(merged.timeline, true);
   return merged;
+}
+
+// 256 KB is far above any realistic hand-written brief (a maxed-out one
+// in the UI is single-digit KB) and well below the V8 string-length /
+// JSON.parse comfort zone. Cap the input up front so a stray multi-MB
+// file dropped into a future importer is rejected before it can balloon
+// memory or stall parsing.
+export const MAX_IMPORT_BYTES = 256 * 1024;
+
+// Safely turn an untrusted JSON string — a dropped file, a pasted blob,
+// the contents of an `.json` export shared between machines — into a
+// fully-sanitized brief. Returns a discriminated union so callers can
+// surface a precise message rather than a generic "import failed".
+export function parseImportedBrief(rawText) {
+  if (typeof rawText !== "string") {
+    return { ok: false, error: "Imported value must be text." };
+  }
+  if (rawText.length > MAX_IMPORT_BYTES) {
+    const kb = Math.round(MAX_IMPORT_BYTES / 1024);
+    return {
+      ok: false,
+      error: `Imported brief is larger than ${kb} KB.`,
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    return { ok: false, error: "File is not valid JSON." };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, error: "Imported brief must be a JSON object." };
+  }
+  return { ok: true, brief: sanitizeBrief(parsed) };
 }
 
 export function hydrateFromStorage() {
