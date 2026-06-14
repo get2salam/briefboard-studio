@@ -16,8 +16,17 @@ function singleLine(text) {
   return text.replace(/[ \t]*\r?\n[\s]*/g, " ").trim();
 }
 
+// Markdown renderers commonly allow raw HTML. Keep exported briefs portable
+// without letting imported or pasted notes become active tags when someone
+// drops the .md into GitHub, Notion, or another HTML-capable renderer.
+function escapeMarkdownHtml(text) {
+  return text.replace(/[<>]/g, (ch) => (ch === "<" ? "&lt;" : "&gt;"));
+}
+
 function bulletList(items) {
-  const cleaned = items.map((i) => singleLine(i.text || "")).filter(Boolean);
+  const cleaned = items
+    .map((i) => escapeMarkdownHtml(singleLine(i.text || "")))
+    .filter(Boolean);
   if (!cleaned.length) return "";
   return cleaned.map((t) => `- ${t}`).join("\n");
 }
@@ -39,7 +48,7 @@ function timelineBlock(items) {
   // and the surrounding "- **...**" wrapper would otherwise break across
   // lines. Also handles the whitespace-only date case the same way trim did.
   const rows = items.map((i) => ({
-    text: singleLine(i.text || ""),
+    text: escapeMarkdownHtml(singleLine(i.text || "")),
     date: singleLine(i.date || ""),
   }));
   const nonEmpty = rows.filter((r) => r.text || r.date);
@@ -57,7 +66,9 @@ function timelineBlock(items) {
     .map((r) => {
       // Drop the em-dash separator when the row has only a date, otherwise
       // the output ends with a dangling "— " that looks like a formatting bug.
-      const label = escapeBoldLabel(r.date ? formatDate(r.date) : "TBD");
+      const label = escapeBoldLabel(
+        escapeMarkdownHtml(r.date ? formatDate(r.date) : "TBD"),
+      );
       return r.text ? `- **${label}** — ${r.text}` : `- **${label}**`;
     })
     .join("\n");
@@ -68,7 +79,8 @@ export function toMarkdown(state = getState()) {
   // Collapse newlines so a multi-line title (only reachable via JSON import —
   // the in-app <input type="text"> can't contain them) doesn't split the H1
   // across an extra paragraph. Same defense as bullet/timeline text.
-  const title = singleLine(state.title || "") || "Untitled brief";
+  const title =
+    escapeMarkdownHtml(singleLine(state.title || "")) || "Untitled brief";
   lines.push(`# ${title}`);
   lines.push("");
 
@@ -77,15 +89,17 @@ export function toMarkdown(state = getState()) {
   // (again, only via JSON import) would otherwise break the meta block's
   // hard-wrapped lines or — worst case — let a value like "Sam\n# Injected"
   // smuggle what renders as a new top-level heading into the user's brief.
-  const client = singleLine(state.client || "");
-  const owner = singleLine(state.owner || "");
+  const client = escapeMarkdownHtml(singleLine(state.client || ""));
+  const owner = escapeMarkdownHtml(singleLine(state.owner || ""));
   // singleLine, not trim: an imported dueDate like "2026-01-15\n# Injected"
   // is unparsable, so formatDate echoes it back, and the meta line would
   // otherwise break across two lines and inject a heading after the value.
   const dueDate = singleLine(state.dueDate || "");
   if (client) metaBits.push(`**Client:** ${client}`);
   if (owner) metaBits.push(`**Owner:** ${owner}`);
-  if (dueDate) metaBits.push(`**Target date:** ${formatDate(dueDate)}`);
+  if (dueDate) {
+    metaBits.push(`**Target date:** ${escapeMarkdownHtml(formatDate(dueDate))}`);
+  }
   if (metaBits.length) {
     lines.push(metaBits.join("  \n"));
     lines.push("");
@@ -93,7 +107,7 @@ export function toMarkdown(state = getState()) {
 
   let body = "";
   if ((state.summary || "").trim()) {
-    body += section("Summary", state.summary.trim());
+    body += section("Summary", escapeMarkdownHtml(state.summary.trim()));
   }
   body += section("Goals", bulletList(state.goals || []));
   body += section("Deliverables", bulletList(state.deliverables || []));
@@ -102,7 +116,7 @@ export function toMarkdown(state = getState()) {
   body += section("Next steps", bulletList(state.nextSteps || []));
 
   if ((state.rawNotes || "").trim()) {
-    body += section("Raw notes", state.rawNotes.trim());
+    body += section("Raw notes", escapeMarkdownHtml(state.rawNotes.trim()));
   }
 
   return (lines.join("\n") + "\n" + body).trimEnd() + "\n";

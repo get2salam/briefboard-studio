@@ -284,3 +284,26 @@ test("toMarkdown escapes underscore and backtick fallbacks in timeline dates too
   assert.match(md, /- \*\*\\_x\\_\*\* — Under/);
   assert.match(md, /- \*\*\\`y\\`\*\* — Tick/);
 });
+
+test("toMarkdown neutralizes raw HTML in exported Markdown fields", () => {
+  // Markdown consumers such as GitHub and Notion may pass raw HTML through
+  // their renderer. Pasted notes or imported JSON must stay visible as text,
+  // not become an active tag when the exported .md is opened elsewhere.
+  const md = toMarkdown(
+    brief({
+      title: "<img src=x onerror=alert(1)>",
+      client: "Acme <script>",
+      summary: "Use <b>bold</b> literally.",
+      goals: [{ id: "g", text: "Review <iframe src=evil>" }],
+      timeline: [{ id: "t", date: "<svg/onload=1>", text: "Ship <tag>" }],
+      rawNotes: "Client pasted <script>alert(1)</script>",
+    }),
+  );
+
+  assert.doesNotMatch(md, /<script|<img|<iframe|<svg|<tag|<b>/i);
+  assert.match(md, /# &lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.match(md, /\*\*Client:\*\* Acme &lt;script&gt;/);
+  assert.match(md, /Use &lt;b&gt;bold&lt;\/b&gt; literally\./);
+  assert.match(md, /- Review &lt;iframe src=evil&gt;/);
+  assert.match(md, /- \*\*&lt;svg\/onload=1&gt;\*\* — Ship &lt;tag&gt;/);
+});
