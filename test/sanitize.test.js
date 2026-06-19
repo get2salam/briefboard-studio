@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sanitizeBrief, emptyBrief } from "../src/store.js";
+import {
+  emptyBrief,
+  getState,
+  replaceState,
+  sanitizeBrief,
+  setState,
+} from "../src/store.js";
 
 test("sanitizeBrief returns an empty brief when input is null or wrong type", () => {
   for (const bad of [null, undefined, 42, "string", true]) {
@@ -144,4 +150,28 @@ test("sanitizeBrief rejects array roots so importing a bare list never aliases a
   const result = sanitizeBrief([{ title: "ignored" }]);
   assert.equal(result.title, "");
   assert.deepEqual(result.goals, []);
+});
+
+test("setState sanitizes untrusted patches before persisting state", () => {
+  // setState is exported for UI modules and devtools-style debugging, so it
+  // needs the same allowlist/type defenses as imported JSON. Otherwise a
+  // rogue data-field attribute or hand-written patch could survive into the
+  // next JSON/Markdown export even though replaceState is locked down.
+  replaceState(emptyBrief());
+  setState({
+    title: "Safe title",
+    summary: { html: "<script>" },
+    secretToken: "should not be exported",
+    goals: [
+      { id: "g1", text: "Keep goal", hidden: "drop me" },
+      "not a goal object",
+    ],
+  });
+
+  const result = getState();
+  assert.equal(result.title, "Safe title");
+  assert.equal(result.summary, "");
+  assert.equal(Object.prototype.hasOwnProperty.call(result, "secretToken"), false);
+  assert.deepEqual(result.goals, [{ id: "g1", text: "Keep goal" }]);
+  assert.match(result.updatedAt, /^\d{4}-\d{2}-\d{2}T/);
 });

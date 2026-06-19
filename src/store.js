@@ -28,7 +28,10 @@ export function getState() {
 }
 
 export function setState(patch) {
-  state = { ...state, ...patch, updatedAt: new Date().toISOString() };
+  // Treat every write as untrusted input, not just JSON imports. This keeps
+  // stray data-field attributes, console-driven patches, and future callers
+  // from smuggling unknown keys or malformed list items into persisted state.
+  state = withUpdatedAt(sanitizeBrief({ ...state, ...patch }));
   persist();
   emit();
 }
@@ -59,9 +62,13 @@ export function replaceState(next) {
   // future JSON import, and any console-driven swap all converge on the
   // same normalized shape. Without this, replaceState was a quiet bypass
   // for the type/allowlist guards every other write goes through.
-  state = { ...sanitizeBrief(next), updatedAt: new Date().toISOString() };
+  state = withUpdatedAt(sanitizeBrief(next));
   persist();
   emit();
+}
+
+function withUpdatedAt(brief) {
+  return { ...brief, updatedAt: new Date().toISOString() };
 }
 
 export function subscribe(fn) {
@@ -75,6 +82,7 @@ function emit() {
 }
 
 function persist() {
+  if (typeof localStorage === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (err) {
