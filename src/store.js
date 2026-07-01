@@ -78,7 +78,16 @@ export function subscribe(fn) {
 }
 
 function emit() {
-  for (const fn of listeners) fn(state);
+  for (const fn of listeners) {
+    try {
+      fn(state);
+    } catch (err) {
+      // Isolate each subscriber so a DOM render error in one pass (e.g.
+      // the preview) cannot silently kill subsequent passes (e.g. the
+      // list editors or the toast region).
+      console.error("[briefboard] subscriber threw:", err);
+    }
+  }
 }
 
 function persist() {
