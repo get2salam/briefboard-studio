@@ -90,6 +90,38 @@ test("sanitizeBrief keeps timeline date field and defaults non-strings to empty"
   assert.equal(result.timeline[2].date, "");
 });
 
+test("sanitizeBrief replaces a list item id containing selector metacharacters", () => {
+  // Ids are later interpolated into a raw querySelector(`li[data-id="${id}"]`)
+  // string in lists.js to restore focus after a re-render. An id smuggling a
+  // quote or bracket would break that selector's syntax and throw, so any id
+  // outside the safe charset must be discarded in favor of a generated one.
+  const result = sanitizeBrief({
+    goals: [
+      { id: 'x"]', text: "Quote and bracket" },
+      { id: "a\nb", text: "Embedded newline" },
+      { id: "  ", text: "Whitespace only" },
+      { id: "x".repeat(200), text: "Way too long" },
+    ],
+  });
+  for (const item of result.goals) {
+    assert.doesNotMatch(item.id, /["'\[\]\s]/, `unsafe id leaked through: ${item.id}`);
+    assert.ok(item.id.length <= 64);
+  }
+});
+
+test("sanitizeBrief preserves list item ids that are already safe", () => {
+  const result = sanitizeBrief({
+    goals: [
+      { id: "550e8400-e29b-41d4-a716-446655440000", text: "UUID-style id" },
+      { id: "id-1720400000000-a3f9c1", text: "Fallback newId format" },
+      { id: "simple-id_1", text: "Plain safe id" },
+    ],
+  });
+  assert.equal(result.goals[0].id, "550e8400-e29b-41d4-a716-446655440000");
+  assert.equal(result.goals[1].id, "id-1720400000000-a3f9c1");
+  assert.equal(result.goals[2].id, "simple-id_1");
+});
+
 test("emptyBrief returns a fresh object each call (no shared references)", () => {
   const a = emptyBrief();
   const b = emptyBrief();

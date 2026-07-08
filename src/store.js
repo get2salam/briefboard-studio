@@ -132,9 +132,19 @@ const ALLOWED_TOP_LEVEL_KEYS = [
   "updatedAt",
 ];
 
+// Ids round-trip into the DOM as data-id attributes and are later
+// interpolated into a raw `li[data-id="${id}"]` querySelector call (see
+// lists.js) to restore focus after a re-render. An imported id containing a
+// quote or bracket — e.g. `x"]` — breaks that selector's syntax and throws,
+// aborting the render pass. Restrict ids to a safe, bounded charset up front
+// so no downstream consumer has to escape them; anything else falls back to
+// a freshly generated id. crypto.randomUUID() and this module's own newId()
+// fallback both already produce strings that satisfy this pattern.
+const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
 function sanitizeListItem(item, isTimeline) {
   if (!item || typeof item !== "object") return null;
-  const id = typeof item.id === "string" && item.id ? item.id : newId();
+  const id = typeof item.id === "string" && SAFE_ID.test(item.id) ? item.id : newId();
   const text = typeof item.text === "string" ? item.text : "";
   if (isTimeline) {
     const date = typeof item.date === "string" ? item.date : "";
